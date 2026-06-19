@@ -38,19 +38,16 @@ export const certifications = [
   {
     name: "AWS Certified Solutions Architect – Associate",
     issuer: "Amazon Web Services",
-    logo: "https://images.credly.com/size/110x110/images/0e284c3f-5164-4b21-8660-0d84737941bc/image.png",
     url: "https://www.credly.com/badges/ee7a6fc9-5127-403e-9331-49618aa5209a/public_url",
   },
   {
     name: "AWS Certified Cloud Practitioner",
     issuer: "Amazon Web Services",
-    logo: "https://images.credly.com/size/110x110/images/00634f82-b07f-4bbd-a6bb-53de397fc3a6/image.png",
     url: "https://www.credly.com/badges/8196b5c5-33c3-4367-823c-e527989c70ea/linked_in_profile",
   },
   {
     name: "Oracle Cloud Infrastructure 2025 Certified Foundations Associate",
     issuer: "Oracle",
-    logo: "https://brm-workforce.oracle.com/pdf/certview/images/OCI2025CFCA.png",
     url: "https://catalog-education.oracle.com/ords/certview/sharebadge?id=951B8417E46ED149D9903891A331A3F6EE8462FA4778F899ABCED2318000579A",
   },
 ];
