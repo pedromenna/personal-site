@@ -10,9 +10,8 @@ export const profile = {
     instagram: "https://instagram.com/pdromenna",
     email: "pedromenna15@gmail.com",
   },
-  // Cole aqui o link do seu currículo (PDF, Google Drive, etc).
-  // Enquanto estiver vazio, o botão "Baixar currículo" mostra um aviso.
-  resumeUrl: "",
+
+  resumeUrl: "https://drive.google.com/file/d/1rgApDUvNjx4BDDeODiaQGLMe318d6WVV/view?usp=sharing",
 };
 
 export const skills = [
@@ -61,15 +60,4 @@ export const typingWords = [
   "cloud infrastructure",
 ];
 
-// Adicione seus projetos aqui conforme for finalizando-os.
-// Cada item segue este formato:
-// {
-//   title: "Nome do projeto",
-//   description: { pt: "Descrição em português.", en: "Description in English." },
-//   tags: ["Terraform", "AWS", "CI/CD"],
-//   link: "https://...",                 // demo ou link externo (opcional)
-//   repo: "https://github.com/...",      // repositório (opcional)
-// }
-// Enquanto este array estiver vazio, a página de Projetos mostra um estado
-// "em construção" com link para o seu GitHub.
 export const projects = [];

@@ -29,28 +29,39 @@ function CertItem({ cert }) {
         e.currentTarget.style.transform = "translateX(0)";
       }}
     >
-      <img
-        alt={cert.name}
-        style={{
-          width: "56px",
-          height: "56px",
-          borderRadius: "10px",
-          flexShrink: 0,
-          objectFit: "contain",
-          background: "#fff",
-          padding: "4px",
-        }}
-        onError={(e) => (e.target.style.display = "none")}
-      />
       <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 600, fontSize: "0.95rem", marginBottom: "4px" }}>{cert.name}</div>
-        <div style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}>{cert.issuer}</div>
+        <div
+          style={{
+            fontWeight: 600,
+            fontSize: "0.95rem",
+            marginBottom: "4px",
+          }}
+        >
+          {cert.name}
+        </div>
+        <div
+          style={{
+            color: "var(--text-muted)",
+            fontSize: "0.82rem",
+          }}
+        >
+          {cert.issuer}
+        </div>
       </div>
-      <span style={{ color: "var(--accent)", fontSize: "1.2rem", flexShrink: 0, opacity: 0.7 }}>↗</span>
+
+      <span
+        style={{
+          color: "var(--accent)",
+          fontSize: "1.2rem",
+          flexShrink: 0,
+          opacity: 0.7,
+        }}
+      >
+        ↗
+      </span>
     </a>
   );
 }
-
 export default function Certifications() {
   const { t } = useLanguage();
 
