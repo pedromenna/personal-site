@@ -30,7 +30,6 @@ function CertItem({ cert }) {
       }}
     >
       <img
-        src={cert.logo}
         alt={cert.name}
         style={{
           width: "56px",
