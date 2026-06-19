@@ -40,11 +40,6 @@ jobs:
         env:
           REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
-          
-      - name: Build, tag and push image
-        env:
-          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
         run: |
           docker buildx build \
             --provenance=false \
