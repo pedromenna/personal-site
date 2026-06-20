@@ -12,9 +12,6 @@ resource "aws_lambda_function" "site" {
     log_group  = aws_cloudwatch_log_group.site.name
   }
 
-  # O deploy real da imagem acontece na pipeline SITE DEPLOY via
-  # `aws lambda update-function-code` usando a tag sha-<commit>.
-  # O Terraform nunca deve sobrescrever essa imagem depois de criada.
   lifecycle {
     ignore_changes = [image_uri]
   }
@@ -27,13 +24,12 @@ resource "aws_lambda_function_url" "site" {
   authorization_type = "NONE"
 }
 
-# authorization_type = "NONE" sozinho não libera acesso público — é preciso
-# essa permissão explícita (resource-based policy) na Lambda, ou a Function
-# URL retorna 403 Forbidden mesmo sem exigir IAM.
 resource "aws_lambda_permission" "url_public" {
   statement_id           = "AllowPublicInvokeFunctionUrl"
   action                 = "lambda:InvokeFunctionUrl"
   function_name          = aws_lambda_function.site.function_name
   principal              = "*"
   function_url_auth_type = "NONE"
+
+  depends_on = [aws_lambda_function_url.site]  # <- única mudança
 }
