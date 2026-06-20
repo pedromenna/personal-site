@@ -31,5 +31,5 @@ resource "aws_lambda_permission" "url_public" {
   principal              = "*"
   function_url_auth_type = "NONE"
 
-  depends_on = [aws_lambda_function_url.site]  # <- única mudança
+  depends_on = [aws_lambda_function_url.site] # <- única mudança
 }
