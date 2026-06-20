@@ -1,1 +1,3 @@
-bucket_name="personal-menna-site"
+project_name = "personal-menna-site"
+environment  = "prod"
+aws_region   = "us-east-1"

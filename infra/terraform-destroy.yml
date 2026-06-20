@@ -1,0 +1,43 @@
+name: "TERRAFORM DESTROY"
+
+# Disparo 100% manual. Substitui o antigo destroy_config.json, que era
+# perigoso por ser um flag versionado no repo (fácil esquecer ligado).
+# Aqui é preciso disparar manualmente E digitar o nome do ambiente para confirmar.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Ambiente a ser destruído"
+        type: choice
+        required: true
+        options:
+          - prod
+      confirm:
+        description: "Digite o nome do ambiente exatamente igual para confirmar (ex: prod)"
+        type: string
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar confirmação
+        run: |
+          if [ "${{ inputs.confirm }}" != "${{ inputs.environment }}" ]; then
+            echo "::error::Confirmação não corresponde ao ambiente selecionado. Nada foi destruído."
+            exit 1
+          fi
+
+  terraform:
+    needs: guard
+    uses: ./.github/workflows/terraform.yml
+    with:
+      environment: ${{ inputs.environment }}
+      action: destroy
+      aws-assume-role-arn: ${{ vars.AWS_ROLE_ARN }}
+      aws-region: "us-east-1"
+      aws-statefile-s3-bucket: ${{ vars.AWS_STATEFILE_BUCKET }}

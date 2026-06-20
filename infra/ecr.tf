@@ -1,32 +1,48 @@
 resource "aws_ecr_repository" "site" {
-  name                 = "${var.bucket_name}-site"
-  image_tag_mutability = "MUTABLE"
-  force_delete         = true
+  name                 = local.name_prefix
+  image_tag_mutability = "IMMUTABLE"
+  force_delete         = false
 
   image_scanning_configuration {
     scan_on_push = true
   }
-}
 
-import {
-  to = aws_ecr_repository.site
-  id = "personal-menna-site-site"
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
 }
 
 resource "aws_ecr_lifecycle_policy" "site" {
   repository = aws_ecr_repository.site.name
+
   policy = jsonencode({
-    rules = [{
-      rulePriority = 1
-      description  = "Manter só as 5 imagens mais recentes"
-      selection = {
-        tagStatus   = "any"
-        countType   = "imageCountMoreThan"
-        countNumber = 5
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Manter apenas as ${var.ecr_image_retention_count} imagens de deploy (tag sha-*) mais recentes"
+        selection = {
+          tagStatus     = "tagged"
+          tagPrefixList = ["sha-"]
+          countType     = "imageCountMoreThan"
+          countNumber   = var.ecr_image_retention_count
+        }
+        action = {
+          type = "expire"
+        }
+      },
+      {
+        rulePriority = 2
+        description  = "Remover imagens sem tag (manifests órfãos) após 1 dia"
+        selection = {
+          tagStatus   = "untagged"
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 1
+        }
+        action = {
+          type = "expire"
+        }
       }
-      action = {
-        type = "expire"
-      }
-    }]
+    ]
   })
 }

@@ -5,17 +5,24 @@ on:
     branches:
       - main
     paths:
+      - '.github/workflows/terraform.yml'
+      - '.github/workflows/prod-deploy.yml'
       - 'infra/**'
 
 permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: prod-deploy-infra
+  cancel-in-progress: false
+
 jobs:
   terraform:
     uses: ./.github/workflows/terraform.yml
     with:
       environment: prod
+      action: apply
       aws-assume-role-arn: ${{ vars.AWS_ROLE_ARN }}
       aws-region: "us-east-1"
       aws-statefile-s3-bucket: ${{ vars.AWS_STATEFILE_BUCKET }}

@@ -1,11 +1,16 @@
 name: "Terraform Workflow"
 
-on: 
+on:
   workflow_call:
     inputs:
       environment:
         type: string
         required: true
+      action:
+        description: "apply ou destroy"
+        type: string
+        required: false
+        default: "apply"
       aws-assume-role-arn:
         type: string
         required: true
@@ -16,22 +21,32 @@ on:
         type: string
         required: true
 
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: terraform-${{ inputs.environment }}
+  cancel-in-progress: false
+
 jobs:
   terraform:
     runs-on: ubuntu-latest
-
+    environment: ${{ inputs.environment }}
     defaults:
       run:
         shell: bash
-
+        working-directory: infra
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.8.3
+      - name: Validar input "action"
+        run: |
+          if [[ "${{ inputs.action }}" != "apply" && "${{ inputs.action }}" != "destroy" ]]; then
+            echo "::error::action precisa ser 'apply' ou 'destroy', recebido: '${{ inputs.action }}'"
+            exit 1
+          fi
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -40,39 +55,82 @@ jobs:
           role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: ${{ inputs.aws-region }}
 
-      - name: Read destroy configuration
-        id: read-destroy-config
-        run: |
-          DESTROY="$(jq -r '.${{ inputs.environment }}' ./infra/destroy_config.json)"
-          echo "destroy=$(echo $DESTROY)" >> $GITHUB_OUTPUT
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+          terraform_wrapper: false
 
+      # Lock de state via S3 nativo (use_lockfile), sem DynamoDB.
+      # Requer Terraform >= 1.10.
       - name: Terraform Init
         run: |
-          cd infra && terraform init \
+          terraform init \
             -backend-config="bucket=${{ inputs.aws-statefile-s3-bucket }}" \
-            -backend-config="key=${{ github.event.repository.name }}" \
+            -backend-config="key=infra/${{ inputs.environment }}/terraform.tfstate" \
             -backend-config="region=${{ inputs.aws-region }}" \
+            -backend-config="use_lockfile=true"
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
 
       - name: Terraform Validate
-        run: cd infra && terraform validate
+        run: terraform validate
 
-      - name: Terraform Destroy
-        if: steps.read-destroy-config.outputs.destroy == 'true'
-        id: terraform-destroy
-        run: cd infra &&
-          terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }} &&
-          terraform destroy -var-file="./envs/${{ inputs.environment }}/terraform.tfvars" -auto-approve
+      - name: Terraform Workspace
+        run: terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }}
+
+      # A Lambda Image precisa de uma imagem já existente no ECR pra ser criada.
+      # Os 3 passos abaixo resolvem isso automaticamente no primeiro push,
+      # sem nenhum passo manual. -target aqui é intencional e idempotente:
+      # depois do primeiro apply ele nunca mais gera diff.
+      - name: Garantir que o repositório ECR existe
+        if: inputs.action == 'apply'
+        run: |
+          terraform apply -auto-approve -lock-timeout=300s \
+            -var-file="./envs/${{ inputs.environment }}/terraform.tfvars" \
+            -target=aws_ecr_repository.site
+
+      - name: Login to Amazon ECR
+        if: inputs.action == 'apply'
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Garantir imagem inicial (bootstrap) no ECR
+        if: inputs.action == 'apply'
+        working-directory: ${{ github.workspace }}
+        run: |
+          REPO_URL=$(terraform -chdir=infra output -raw ecr_repository_url)
+          REPO_NAME="${REPO_URL#*/}"
+
+          if aws ecr describe-images --repository-name "$REPO_NAME" --image-ids imageTag=bootstrap >/dev/null 2>&1; then
+            echo "Imagem bootstrap já existe em $REPO_URL, nada a fazer."
+          else
+            echo "Imagem bootstrap não encontrada. Construindo a partir do Dockerfile atual..."
+            docker build -t "$REPO_URL:bootstrap" .
+            docker push "$REPO_URL:bootstrap"
+          fi
 
       - name: Terraform Plan
-        if: steps.read-destroy-config.outputs.destroy != 'true'
-        id: terraform-plan
-        run: cd infra &&
-          terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }} &&
-          terraform plan -var-file="./envs/${{ inputs.environment }}/terraform.tfvars" -out="${{ inputs.environment }}.plan"
+        if: inputs.action == 'apply'
+        run: |
+          terraform plan \
+            -lock-timeout=300s \
+            -var-file="./envs/${{ inputs.environment }}/terraform.tfvars" \
+            -out="${{ inputs.environment }}.plan"
 
       - name: Terraform Apply
-        if: steps.read-destroy-config.outputs.destroy != 'true'
-        id: terraform-apply
-        run: cd infra &&
-          terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }} &&
-          terraform apply "${{ inputs.environment }}.plan"
+        if: inputs.action == 'apply'
+        run: terraform apply -lock-timeout=300s "${{ inputs.environment }}.plan"
+
+      - name: Terraform Destroy Plan
+        if: inputs.action == 'destroy'
+        run: |
+          terraform plan -destroy \
+            -lock-timeout=300s \
+            -var-file="./envs/${{ inputs.environment }}/terraform.tfvars" \
+            -out="${{ inputs.environment }}-destroy.plan"
+
+      - name: Terraform Destroy Apply
+        if: inputs.action == 'destroy'
+        run: terraform apply -lock-timeout=300s "${{ inputs.environment }}-destroy.plan"
