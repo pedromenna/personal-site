@@ -80,6 +80,26 @@ jobs:
       - name: Terraform Workspace
         run: terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }}
 
+      # Se uma tentativa anterior (ou algo fora do Terraform) já criou o log
+      # group, o apply falha com "ResourceAlreadyExistsException". Esse passo
+      # detecta isso e importa o recurso pro state automaticamente — sem
+      # interromper o primeiro deploy, quando o log group ainda não existe.
+      - name: Importar log group existente, se necessário
+        if: inputs.action == 'apply'
+        run: |
+          NAME_PREFIX=$(echo 'local.name_prefix' | terraform console -var-file="./envs/${{ inputs.environment }}/terraform.tfvars" | tr -d '"')
+          LOG_GROUP_NAME="/aws/lambda/$NAME_PREFIX"
+
+          if terraform state list | grep -qx "aws_cloudwatch_log_group.site"; then
+            echo "Log group já está no state, nada a fazer."
+          elif aws logs describe-log-groups --log-group-name-prefix "$LOG_GROUP_NAME" \
+                --query "logGroups[?logGroupName=='$LOG_GROUP_NAME']" --output text | grep -q .; then
+            echo "Log group existe na AWS mas não no state. Importando..."
+            terraform import "aws_cloudwatch_log_group.site" "$LOG_GROUP_NAME"
+          else
+            echo "Log group ainda não existe, será criado pelo apply."
+          fi
+
       # A Lambda Image precisa de uma imagem já existente no ECR pra ser criada.
       # Os 3 passos abaixo resolvem isso automaticamente no primeiro push,
       # sem nenhum passo manual. -target aqui é intencional e idempotente:
