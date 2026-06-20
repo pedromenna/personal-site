@@ -26,3 +26,14 @@ resource "aws_lambda_function_url" "site" {
   function_name      = aws_lambda_function.site.function_name
   authorization_type = "NONE"
 }
+
+# authorization_type = "NONE" sozinho não libera acesso público — é preciso
+# essa permissão explícita (resource-based policy) na Lambda, ou a Function
+# URL retorna 403 Forbidden mesmo sem exigir IAM.
+resource "aws_lambda_permission" "url_public" {
+  statement_id           = "AllowPublicInvokeFunctionUrl"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.site.function_name
+  principal              = "*"
+  function_url_auth_type = "NONE"
+}
