@@ -26,10 +26,10 @@ resource "aws_lambda_function_url" "site" {
 
 resource "aws_lambda_permission" "url_public" {
   statement_id           = "AllowPublicInvokeFunctionUrl"
-  action                 = "lambda:InvokeFunctionUrl"
+  action                 = "lambda:InvokeFunction"  # <- muda aqui
   function_name          = aws_lambda_function.site.function_name
   principal              = "*"
   function_url_auth_type = "NONE"
 
-  depends_on = [aws_lambda_function_url.site] # <- única mudança
+  depends_on = [aws_lambda_function_url.site]
 }
